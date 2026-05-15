@@ -1,0 +1,107 @@
+{
+  "idre_git_sha": "2232169ef8dc",
+  "generated_at": "2026-05-15T16:56:14Z",
+  "files": {
+    "report_reference_cards.json": "d1bc776fe2871f95",
+    "schema_catalog.json": "c6491765f0791686",
+    "enum_catalog.json": "c3e869902b39c69d",
+    "business_logic.json": "e39e5d548e31e029"
+  },
+  "validation": {
+    "checks": [
+      {
+        "name": "file_exists:report_reference_cards.json",
+        "ok": true,
+        "sha": "d1bc776fe2871f95"
+      },
+      {
+        "name": "file_exists:schema_catalog.json",
+        "ok": true,
+        "sha": "c6491765f0791686"
+      },
+      {
+        "name": "file_exists:enum_catalog.json",
+        "ok": true,
+        "sha": "c3e869902b39c69d"
+      },
+      {
+        "name": "file_exists:business_logic.json",
+        "ok": true,
+        "sha": "e39e5d548e31e029"
+      },
+      {
+        "name": "sql_present:auditing/daily-funds",
+        "ok": false
+      },
+      {
+        "name": "sql_present:auditing/daily-transactions",
+        "ok": false
+      },
+      {
+        "name": "sql_present:case-analytics",
+        "ok": false
+      },
+      {
+        "name": "sql_present:case-balance",
+        "ok": false
+      },
+      {
+        "name": "sql_present:cms-payments",
+        "ok": false
+      },
+      {
+        "name": "sql_present:dashboard-stats",
+        "ok": false
+      },
+      {
+        "name": "sql_present:due-dates",
+        "ok": false
+      },
+      {
+        "name": "sql_present:due-dates/summary",
+        "ok": false
+      },
+      {
+        "name": "sql_present:export",
+        "ok": false
+      },
+      {
+        "name": "sql_present:exports",
+        "ok": false
+      },
+      {
+        "name": "sql_present:exports/[exportId]",
+        "ok": false
+      },
+      {
+        "name": "sql_present:exports/[exportId]/download",
+        "ok": false
+      },
+      {
+        "name": "sql_present:exports/[exportId]/retry",
+        "ok": false
+      },
+      {
+        "name": "sql_present:idre-payouts",
+        "ok": false
+      },
+      {
+        "name": "sql_present:outstanding-payments",
+        "ok": false
+      },
+      {
+        "name": "sql_present:recent-activity",
+        "ok": false
+      },
+      {
+        "name": "sql_present:team-performance",
+        "ok": false
+      },
+      {
+        "name": "sql_present:unpaid-disputes",
+        "ok": false
+      }
+    ],
+    "ok": false
+  }
+}
