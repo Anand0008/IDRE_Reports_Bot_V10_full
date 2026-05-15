@@ -1,0 +1,153 @@
+{
+  "idre_git_sha": "2232169ef8dc",
+  "typescript_enums": {
+    "STRIPE_RATES": [
+      "FIXED_FEE_CENTS",
+      "PERCENTAGE_RATE"
+    ],
+    "CASE_PRICING": [
+      "CMS_FEE",
+      "ENTITY_FEE",
+      "SINGLE",
+      "TOTAL_PER_PARTY"
+    ],
+    "REFUND_AMOUNTS": [
+      "ENTITY_FEE_FULL",
+      "ENTITY_FEE_HALF"
+    ],
+    "REFUND_PAYOUTS": [
+      "CAPITOL_BRIDGE",
+      "HALO",
+      "STANDARD",
+      "VERATRU"
+    ],
+    "EVENT_NAMES": [
+      "ASSIGNED",
+      "CASE",
+      "CLOSED",
+      "PAYMENT_PENDING",
+      "RFI_RECEIVED",
+      "RFI_REQUESTED",
+      "STATUS_CHANGED"
+    ],
+    "MTB_ROUTING_NUMBERS": [
+      "NY",
+      "PA"
+    ],
+    "MTB_LEAD_TIMES": [
+      "CREDIT",
+      "DEBIT"
+    ],
+    "CaseStatus": [
+      "CLOSED_ADMINISTRATIVE",
+      "CLOSED_DEFAULT",
+      "CLOSED_DEFAULT_IP",
+      "CLOSED_DEFAULT_NIP",
+      "CLOSED_INITIATING_PARTY",
+      "CLOSED_NON_INITIATING_PARTY",
+      "CLOSED_SPLIT_DECISION",
+      "FINAL_DETERMINATION_PENDING",
+      "FINAL_DETERMINATION_RENDERED",
+      "FINAL_ELIGIBILITY_COMPLETED",
+      "FINAL_ELIGIBILITY_REVIEW",
+      "INELIGIBLE",
+      "INELIGIBLE_PENDING_ADMIN_FEE",
+      "INITIAL_ELIGIBILITY_REVIEW",
+      "NOTICE_OF_DISMISSAL_NON_PAYMENT",
+      "PAYBACK_REQUEST",
+      "PENDING_ADMINISTRATIVE_CLOSURE",
+      "PENDING_CLOSURE_PAYMENTS",
+      "PENDING_INITIAL_RFI",
+      "PENDING_PAYMENTS",
+      "PENDING_RFI",
+      "PENDING_SECOND_PAYMENT",
+      "REOPENED_FOR_CORRECTION"
+    ],
+    "PaybackCause": [
+      "COMPLETED_REFUND_EXISTS",
+      "REFUND_GENERATION_FAILED"
+    ],
+    "CasePriority": [
+      "HIGH",
+      "LOW",
+      "NORMAL",
+      "URGENT"
+    ],
+    "DisputeType": [
+      "BATCHED",
+      "BUNDLED",
+      "SINGLE"
+    ],
+    "CaseClosureReason": [
+      "DEFAULT_IP_NON_PAYMENT",
+      "DEFAULT_NIP_NON_PAYMENT",
+      "DISMISSAL",
+      "DISMISSAL_NON_PAYMENT_BOTH",
+      "EARLY_INELIGIBLE",
+      "EARLY_OTHER",
+      "EARLY_RESUBMISSION",
+      "EARLY_SETTLEMENT",
+      "EARLY_WITHDRAWAL",
+      "OTHER_ADMIN",
+      "RESUBMISSION",
+      "SETTLEMENT",
+      "WITHDRAWAL",
+      "WITHDRAWAL_IP",
+      "WITHDRAWAL_NIP"
+    ],
+    "SEEDING_CONFIG": [
+      "ADMIN_USERS"
+    ]
+  },
+  "rds_sampled": {
+    "case.status": [
+      "CLOSED_ADMINISTRATIVE",
+      "CLOSED_DEFAULT",
+      "CLOSED_DEFAULT_IP",
+      "CLOSED_DEFAULT_NIP",
+      "CLOSED_INITIATING_PARTY",
+      "CLOSED_NON_INITIATING_PARTY",
+      "CLOSED_SPLIT_DECISION",
+      "FINAL_DETERMINATION_PENDING",
+      "FINAL_DETERMINATION_RENDERED",
+      "FINAL_ELIGIBILITY_COMPLETED",
+      "FINAL_ELIGIBILITY_REVIEW",
+      "INELIGIBLE",
+      "INELIGIBLE_PENDING_ADMIN_FEE",
+      "INITIAL_ELIGIBILITY_REVIEW",
+      "NOTICE_OF_DISMISSAL_NON_PAYMENT",
+      "PENDING_ADMINISTRATIVE_CLOSURE",
+      "PENDING_CLOSURE_PAYMENTS",
+      "PENDING_INITIAL_RFI",
+      "PENDING_PAYMENTS",
+      "PENDING_RFI",
+      "PENDING_SECOND_PAYMENT"
+    ],
+    "payment.type": [
+      "CAPITOL_BRIDGE_FEE",
+      "CASE_PAYMENT",
+      "CMS_ADMIN_FEE_TRANSFER",
+      "CMS_INVOICE_PAYMENT",
+      "PARTY_REFUND_IP",
+      "PARTY_REFUND_NIP",
+      "REFUND_TO_PREVAILING_PARTY",
+      "THIRD_PARTY_PAYMENT"
+    ],
+    "payment.status": [
+      "APPROVED",
+      "CANCELLED",
+      "COMPLETED",
+      "FAILED",
+      "ON_HOLD",
+      "PENDING"
+    ],
+    "payment.direction": [
+      "INCOMING",
+      "OUTGOING"
+    ],
+    "case_payment_allocation.partyType": [
+      "INITIATING",
+      "NON_INITIATING"
+    ]
+  }
+}
