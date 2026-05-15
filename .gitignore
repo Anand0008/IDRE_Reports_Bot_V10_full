@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+.env
+data/__pycache__
+agents/__pycache__
+tools/__pycache__
+config/__pycache__
+state/__pycache__
+db/__pycache__
+core/__pycache__
+utils/__pycache__
+chrome-cdp-profile/
+materialized_results/
+*.log
+
+# Runtime state files
+data/*.jsonl
+data/anomaly_window.json
+data/clarification_history.json
+data/query_frequency.json
+data/successful_queries.json
+data/chroma_db/
+data/materialized_results/
+data/error_knowledge_base.json
+knowledge/v10_pending/
