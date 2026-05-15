@@ -1,0 +1,114 @@
+{
+  "idre_git_sha": "2232169ef8dc",
+  "reports": [
+    {
+      "id": "auditing/daily-funds",
+      "route_file": "app/api/reports/auditing/daily-funds/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/auditing/daily-funds"
+    },
+    {
+      "id": "auditing/daily-transactions",
+      "route_file": "app/api/reports/auditing/daily-transactions/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/auditing/daily-transactions"
+    },
+    {
+      "id": "case-analytics",
+      "route_file": "app/api/reports/case-analytics/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/case-analytics"
+    },
+    {
+      "id": "case-balance",
+      "route_file": "app/api/reports/case-balance/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/case-balance"
+    },
+    {
+      "id": "cms-payments",
+      "route_file": "app/api/reports/cms-payments/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/cms-payments"
+    },
+    {
+      "id": "dashboard-stats",
+      "route_file": "app/api/reports/dashboard-stats/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/dashboard-stats"
+    },
+    {
+      "id": "due-dates",
+      "route_file": "app/api/reports/due-dates/route.ts",
+      "lib_file": "lib/reports/due-dates.ts",
+      "endpoint": "/api/reports/due-dates"
+    },
+    {
+      "id": "due-dates/summary",
+      "route_file": "app/api/reports/due-dates/summary/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/due-dates/summary"
+    },
+    {
+      "id": "export",
+      "route_file": "app/api/reports/export/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/export"
+    },
+    {
+      "id": "exports",
+      "route_file": "app/api/reports/exports/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/exports"
+    },
+    {
+      "id": "exports/[exportId]",
+      "route_file": "app/api/reports/exports/[exportId]/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/exports/[exportId]"
+    },
+    {
+      "id": "exports/[exportId]/download",
+      "route_file": "app/api/reports/exports/[exportId]/download/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/exports/[exportId]/download"
+    },
+    {
+      "id": "exports/[exportId]/retry",
+      "route_file": "app/api/reports/exports/[exportId]/retry/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/exports/[exportId]/retry"
+    },
+    {
+      "id": "idre-payouts",
+      "route_file": "app/api/reports/idre-payouts/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/idre-payouts"
+    },
+    {
+      "id": "outstanding-payments",
+      "route_file": "app/api/reports/outstanding-payments/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/outstanding-payments"
+    },
+    {
+      "id": "recent-activity",
+      "route_file": "app/api/reports/recent-activity/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/recent-activity"
+    },
+    {
+      "id": "team-performance",
+      "route_file": "app/api/reports/team-performance/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/team-performance"
+    },
+    {
+      "id": "unpaid-disputes",
+      "route_file": "app/api/reports/unpaid-disputes/route.ts",
+      "lib_file": null,
+      "endpoint": "/api/reports/unpaid-disputes"
+    }
+  ],
+  "count": 18
+}
