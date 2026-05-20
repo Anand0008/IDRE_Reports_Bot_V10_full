@@ -1,0 +1,107 @@
+{
+  "version": "1.0",
+  "extracted_from": "DISCUSSION_SUMMARY.md §5 (8 rules learned from comparing bot SQL vs IDRE Prisma source) + report_reference_cards.json (13 card triggers)",
+  "extraction_date": "2026-05-20",
+  "description": "Universal cross-cutting rules that apply to any query matching their keywords, plus per-report card triggers. Loaded by platform_context_agent and surfaced into state['platform_context'] for the sql_writer prompt. Matching algorithm: case-insensitive substring (`kw.lower() in query_lower`). Tune keyword granularity accordingly — single-word keywords match aggressively, multi-word keywords are stricter.",
+  "universal_rules": [
+    {
+      "id": "outstanding_payments",
+      "applies_when": "query mentions outstanding payments, unpaid disputes, what's owed, money owed, awaiting payment",
+      "keywords": ["outstanding", "unpaid", "owed", "awaiting payment", "not paid", "payment pending", "pending payment"],
+      "rule": "IDRE defines 'outstanding payment' as cases in one of 5 specific statuses AND a NOT EXISTS subquery confirming the relevant party has not paid. Statuses: PENDING_PAYMENTS, PENDING_SECOND_PAYMENT, PENDING_ADMINISTRATIVE_CLOSURE, INELIGIBLE, INELIGIBLE_PENDING_ADMIN_FEE. 'Paid' means EXISTS a case_payment_allocation for that partyType joined to payment with direction='INCOMING' AND status IN ('PENDING','APPROVED','COMPLETED'). Party-specific (IP vs NIP).",
+      "sql_snippet": "WHERE c.status IN ('PENDING_PAYMENTS','PENDING_SECOND_PAYMENT','PENDING_ADMINISTRATIVE_CLOSURE','INELIGIBLE','INELIGIBLE_PENDING_ADMIN_FEE') AND NOT EXISTS (SELECT 1 FROM case_payment_allocation cpa JOIN payment p ON p.id = cpa.paymentId WHERE cpa.caseId = c.id AND cpa.partyType = 'INITIATING' AND p.direction = 'INCOMING' AND p.status IN ('PENDING','APPROVED','COMPLETED'))"
+    },
+    {
+      "id": "due_date_handling",
+      "applies_when": "query mentions due dates, deadlines, overdue, urgent, past due, upcoming deadlines",
+      "keywords": ["due date", "due dates", "deadline", "overdue", "past due", "urgent", "upcoming due", "due soon", "expire"],
+      "rule": "IDRE computes a case's primary due date by COALESCE across 4 columns in this priority: due_date, eligibilityDueDate, paymentDueDate, due_date_until_decision. To filter cases with ANY due date passed/upcoming, OR-test all 4 columns. The dueDateType label is derived from which column is non-null.",
+      "sql_snippet": "WHERE (c.due_date < NOW() OR c.eligibilityDueDate < NOW() OR c.paymentDueDate < NOW() OR c.due_date_until_decision < NOW()) -- and COALESCE for primary date selection: COALESCE(c.due_date, c.eligibilityDueDate, c.paymentDueDate, c.due_date_until_decision) AS primaryDueDate"
+    },
+    {
+      "id": "cms_payment_type",
+      "applies_when": "query mentions CMS payments, CMS revenue, CMS amounts",
+      "keywords": ["cms", "cms payment", "cms revenue", "centers for medicare"],
+      "rule": "'CMS payments' in IDRE = payment.type = 'CASE_PAYMENT'. The bot must NEVER use 'CMS_INVOICE_PAYMENT' or 'CMS_ADMIN_FEE_TRANSFER' as a filter — those enum values do exist but they're not what users mean by 'CMS payment'. 'CMS' is the report context, not the payment type.",
+      "sql_snippet": "WHERE p.type = 'CASE_PAYMENT' AND p.status = 'COMPLETED'"
+    },
+    {
+      "id": "payout_entity_matching",
+      "applies_when": "query mentions payouts to a specific entity (Capitol Bridge, Halo, VeraTru, etc.)",
+      "keywords": ["payout", "payouts to", "paid to", "payee", "recipient", "disbursement"],
+      "rule": "Match payee entities through the bankingSnapshot JSON field on payment, NOT through the organization table. Use LOWER(JSON_UNQUOTE(JSON_EXTRACT(p.bankingSnapshot, '$.accountHolderName'))) OR LOWER(p.recipientName). Always filter direction='OUTGOING' AND status='COMPLETED'.",
+      "sql_snippet": "WHERE p.direction = 'OUTGOING' AND p.status = 'COMPLETED' AND (LOWER(JSON_UNQUOTE(JSON_EXTRACT(p.bankingSnapshot, '$.accountHolderName'))) LIKE '%capitol bridge%' OR LOWER(p.recipientName) LIKE '%capitol bridge%')"
+    },
+    {
+      "id": "case_balance_formula",
+      "applies_when": "query mentions case balance, net balance, money allocated/refunded per case",
+      "keywords": ["case balance", "balance", "net balance", "case allocated", "case refunded"],
+      "rule": "balance = SUM(allocatedAmount from INCOMING APPROVED/COMPLETED payments) - SUM(refundAmountCents/100 from COMPLETED case_refunds). Use case_refunds table for refunds, NOT case_payment_allocation. Do NOT subtract OUTGOING from INCOMING — refunds live in case_refunds.",
+      "sql_snippet": "SELECT c.id, (COALESCE(alloc.totalAllocated, 0) - COALESCE(ref.totalRefunded, 0)) AS balance FROM `case` c LEFT JOIN (SELECT cpa.caseId, SUM(cpa.allocatedAmount) AS totalAllocated FROM case_payment_allocation cpa JOIN payment p ON p.id = cpa.paymentId WHERE p.direction='INCOMING' AND p.status IN ('APPROVED','COMPLETED') GROUP BY cpa.caseId) alloc ON alloc.caseId = c.id LEFT JOIN (SELECT cr.caseId, SUM(cr.refundAmountCents)/100.0 AS totalRefunded FROM case_refunds cr WHERE cr.status='COMPLETED' GROUP BY cr.caseId) ref ON ref.caseId = c.id"
+    },
+    {
+      "id": "recent_activity_window",
+      "applies_when": "query mentions recent, today, this week, latest, last 7 days, recent activity",
+      "keywords": ["recent", "today", "this week", "latest", "last 7 days", "recent activity", "past week"],
+      "rule": "Apply a 7-day recency filter for 'recent' / 'this week' / 'latest'. Use :now placeholder so executor can substitute the temporal anchor. Without this, queries return all-time data (e.g., 889K case_actions instead of last-week's 8K).",
+      "sql_snippet": "WHERE createdAt >= DATE_SUB(:now, INTERVAL 7 DAY)"
+    },
+    {
+      "id": "arbitrator_team_filter",
+      "applies_when": "query asks about arbitrators, team performance, assigned-to, staff caseload",
+      "keywords": ["arbitrator", "arbitrators", "team performance", "team", "caseload", "assigned to", "staff performance", "workload"],
+      "rule": "When counting cases per user (arbitrator/team queries): use case.assignedToId for the JOIN (NOT closed_by_user_id which is almost always empty). Filter user.role IN ('arbitrator', 'arbitrator-contractor', 'admin-support', 'eligibility-specialist'). Use LEFT JOIN to include 0-case users when listing workload. Active arbitrators come from the user table by role, not from counting case assignments.",
+      "sql_snippet": "SELECT u.id, u.name, COUNT(c.id) AS case_count FROM `user` u LEFT JOIN `case` c ON c.assignedToId = u.id WHERE u.role IN ('arbitrator','arbitrator-contractor','admin-support','eligibility-specialist') GROUP BY u.id, u.name"
+    },
+    {
+      "id": "daily_funds_grouping",
+      "applies_when": "query mentions daily funds, daily net, net cash position, incoming vs outgoing",
+      "keywords": ["daily funds", "net cash", "net position", "incoming vs outgoing", "daily net", "fund flow"],
+      "rule": "Net cash = SUM(amount WHERE direction='INCOMING') - SUM(amount WHERE direction='OUTGOING'), filtered to status IN ('APPROVED','COMPLETED'), grouped by direction for breakdown. NOT 'count of new cases today' — that's a different metric.",
+      "sql_snippet": "SELECT p.direction, SUM(p.amount) AS total FROM payment p WHERE p.status IN ('APPROVED','COMPLETED') AND DATE(p.createdAt) = DATE(:now) GROUP BY p.direction"
+    },
+    {
+      "id": "soft_delete_line_items",
+      "applies_when": "query touches dispute_line_items",
+      "keywords": ["line item", "line items", "dispute_line_items", "dispute lines"],
+      "rule": "Always filter dispute_line_items WHERE status='ACTIVE'. 'REMOVED' rows are soft-deleted and must not appear.",
+      "sql_snippet": "WHERE dli.status = 'ACTIVE'"
+    },
+    {
+      "id": "terminal_statuses",
+      "applies_when": "query asks about active vs closed cases",
+      "keywords": ["active case", "active cases", "active dispute", "open case", "open dispute", "closed case", "terminal"],
+      "rule": "Terminal statuses (case is closed): CLOSED_DEFAULT, CLOSED_INITIATING_PARTY, CLOSED_NON_INITIATING_PARTY, CLOSED_ADMINISTRATIVE, CLOSED_SPLIT_DECISION, NOTICE_OF_DISMISSAL_NON_PAYMENT, CLOSED_DEFAULT_IP, CLOSED_DEFAULT_NIP, INELIGIBLE, FINAL_DETERMINATION_RENDERED. Source: config/business_glossary.json terminal-status entry (single source of truth post-Node 3).",
+      "sql_snippet": "WHERE c.status NOT IN ('CLOSED_DEFAULT','CLOSED_INITIATING_PARTY','CLOSED_NON_INITIATING_PARTY','CLOSED_ADMINISTRATIVE','CLOSED_SPLIT_DECISION','NOTICE_OF_DISMISSAL_NON_PAYMENT','CLOSED_DEFAULT_IP','CLOSED_DEFAULT_NIP','INELIGIBLE','FINAL_DETERMINATION_RENDERED')"
+    },
+    {
+      "id": "organization_join_paths",
+      "applies_when": "query mentions an organization name or filters by organization",
+      "keywords": ["organization", "company", "provider", "health plan", "insurer", "by organization", "by org"],
+      "rule": "JOIN organization through the appropriate FK based on context: nonInitiatingPartyOrganizationId for NIP, initiatingPartyOrganizationId for IP, ownedByOrganizationId for owner. When unclear which party, OR across all three FKs.",
+      "sql_snippet": "JOIN organization nip_org ON nip_org.id = c.nonInitiatingPartyOrganizationId WHERE nip_org.name LIKE '%<name>%'"
+    },
+    {
+      "id": "dispute_number_display",
+      "applies_when": "any query listing or counting cases",
+      "keywords": ["DISP-", "dispute number", "list cases", "show cases", "list disputes", "show disputes"],
+      "rule": "Always SELECT `case`.shortId AS dispute_number for user-facing displays. Never expose `case`.id (internal UUID, useless to users). When the user searches by 'DISP-XXXXXXX', strip the DISP- prefix: WHERE `case`.shortId = 'XXXXXXX'.",
+      "sql_snippet": "SELECT `case`.shortId AS dispute_number, ..."
+    }
+  ],
+  "report_card_triggers": [
+    {"card_id": "due-dates", "keywords": ["due date", "due dates", "deadline", "overdue", "past due", "urgent"]},
+    {"card_id": "case-analytics", "keywords": ["case analytics", "case volume", "case trend", "outcome analysis", "resolution time"]},
+    {"card_id": "case-balance", "keywords": ["case balance", "balance report", "allocated", "net balance"]},
+    {"card_id": "outstanding-payments", "keywords": ["outstanding payment", "unpaid", "owed", "payment due", "not paid"]},
+    {"card_id": "cms-payments", "keywords": ["cms payment", "cms analytics", "cms fee", "medicare payment", "cms invoice"]},
+    {"card_id": "dashboard-stats", "keywords": ["dashboard", "quick stats", "summary stats", "overview", "kpi"]},
+    {"card_id": "team-performance", "keywords": ["team performance", "arbitrator performance", "caseload", "productivity", "staff performance"]},
+    {"card_id": "unpaid-disputes", "keywords": ["unpaid dispute", "dispute payment status", "ip payment", "nip payment"]},
+    {"card_id": "idre-payouts", "keywords": ["payout", "halo", "veratru", "capitol bridge", "internal payout", "entity payout"]},
+    {"card_id": "daily-funds", "keywords": ["daily funds", "incoming funds", "outgoing funds", "daily reconciliation", "net position"]},
+    {"card_id": "daily-transactions", "keywords": ["daily transaction", "transaction report", "quickbooks", "7-digit", "seven digit"]},
+    {"card_id": "recent-activity", "keywords": ["recent activity", "activity feed", "latest activity", "recent changes"]},
+    {"card_id": "payment-variance", "keywords": ["payment variance", "overpayment", "underpayment", "variance report"]}
+  ]
+}
