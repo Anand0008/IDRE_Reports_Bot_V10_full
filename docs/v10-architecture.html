@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>V10 Reports Bot — Architecture &amp; Flow (2026-05-20)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1c2330;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --accent-2: #f78166;
+    --green: #56d364;
+    --yellow: #e3b341;
+    --red: #f85149;
+    --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.55;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px; margin-bottom: 28px;
+  }
+  h1 { margin: 0 0 6px; font-size: 28px; font-weight: 600; letter-spacing: -0.5px; }
+  h2 {
+    margin: 36px 0 14px; font-size: 22px; font-weight: 600;
+    color: var(--text); border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  h3 { margin: 24px 0 10px; font-size: 17px; font-weight: 600; color: var(--accent); }
+  header .meta {
+    color: var(--muted); font-size: 13px;
+  }
+  header .meta span { margin-right: 16px; }
+  header .meta b { color: var(--text); font-weight: 600; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin: 12px 0;
+  }
+  .panel.accent { border-color: var(--accent); }
+  .panel.warn   { border-color: var(--yellow); }
+  .panel.error  { border-color: var(--red); }
+  code, .mono {
+    font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+  code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 1px 6px; border-radius: 4px;
+    color: var(--accent);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0;
+    font-size: 13.5px;
+  }
+  th, td {
+    text-align: left; padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  tr:hover td { background: var(--panel-2); }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .pill.known   { background: rgba(86, 211, 100, 0.15); color: var(--green); border: 1px solid var(--green); }
+  .pill.derived { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid var(--accent); }
+  .pill.tool    { background: rgba(247, 129, 102, 0.15); color: var(--accent-2); border: 1px solid var(--accent-2); }
+  .pill.new     { background: rgba(227, 179, 65, 0.15); color: var(--yellow); border: 1px solid var(--yellow); }
+  .grid { display: grid; gap: 14px; }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  .mermaid {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px;
+    overflow-x: auto;
+    text-align: center;
+  }
+  .toc {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 18px;
+    margin-bottom: 24px;
+  }
+  .toc a {
+    color: var(--accent); text-decoration: none; margin-right: 18px;
+    font-size: 13.5px;
+  }
+  .toc a:hover { text-decoration: underline; }
+  ul, ol { margin: 8px 0 12px 22px; padding: 0; }
+  li { margin-bottom: 4px; }
+  .kvp { display: grid; grid-template-columns: 200px 1fr; gap: 4px 18px; }
+  .kvp dt { color: var(--muted); font-size: 13px; }
+  .kvp dd { margin: 0; }
+  .lane {
+    border-left: 3px solid var(--accent);
+    padding-left: 14px; margin: 14px 0;
+  }
+  .lane.known   { border-color: var(--green); }
+  .lane.derived { border-color: var(--accent); }
+  .lane.tool    { border-color: var(--accent-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>V10 Reports Bot &mdash; Architecture &amp; Flow</h1>
+  <div class="meta">
+    <span><b>Snapshot:</b> 2026-05-20 (post Option-C unify, all Nodes 1&ndash;10 + 6.1)</span>
+    <span><b>Tests:</b> 261/261 passing</span>
+    <span><b>Branch:</b> master &middot; head <code>7d23bec</code></span>
+  </div>
+  <div class="meta" style="margin-top:6px;">
+    <span><b>Backup snapshot:</b> <code><HOME>/Downloads/v10_reports_bot_backup</code> (434 files, 247/247 pre-Option-C)</span>
+  </div>
+</header>
+
+<div class="toc">
+  <a href="#overview">Overview</a>
+  <a href="#entrypoint">Entrypoint</a>
+  <a href="#router">Router</a>
+  <a href="#known">Known path</a>
+  <a href="#derived">Derived pipeline</a>
+  <a href="#state">State shape</a>
+  <a href="#tools">SQL Writer tools</a>
+  <a href="#retry">Retry &amp; abort</a>
+  <a href="#tracing">Tracing</a>
+  <a href="#knowledge">Knowledge artifacts</a>
+  <a href="#config">Configuration</a>
+  <a href="#deploy">Deployment</a>
+</div>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="overview">
+<h2>1. Overview &mdash; the 10-second tour</h2>
+
+<div class="panel accent">
+A user types a natural-language question (Streamlit UI or smoke harness). One entrypoint &mdash;
+<code>harness_entrypoint.run_query_v10()</code> &mdash; routes the prompt once and returns a
+single canonical response shape regardless of path.
+
+<ul>
+<li><b><span class="pill known">KNOWN</span></b> &middot; ~12 IDRE API endpoints. Router signature-matches the prompt, calls the IDRE REST API, renders the body as markdown.</li>
+<li><b><span class="pill derived">DERIVED</span></b> &middot; LangGraph 14-agent pipeline. Generates SQL via Gemini + tools, executes on MySQL, enriches + formats the result.</li>
+</ul>
+
+If a known-path API call fails (e.g. IDRE unreachable), the entrypoint gracefully falls back to the derived path with the error preserved in <code>agent_trace</code>.
+</div>
+
+<h3>Top-level flow</h3>
+<div class="mermaid">
+flowchart LR
+    classDef ui     fill:#1a3a5c,stroke:#58a6ff,color:#fff
+    classDef known  fill:#1b3b1f,stroke:#56d364,color:#fff
+    classDef derived fill:#2a2150,stroke:#a371f7,color:#fff
+    classDef ext    fill:#3a2515,stroke:#f78166,color:#fff
+    classDef store  fill:#262a30,stroke:#8b949e,color:#fff
+
+    UI([Streamlit UI<br/>app.py]):::ui
+    HARN([Harness<br/>_node6_pipeline_smoke.py]):::ui
+
+    ENTRY[run_query_v10<br/>harness_entrypoint.py]:::ui
+    ROUTER[router.route<br/>config/route_signatures.json]:::ui
+
+    KNOWN[IdreApiClient<br/>agents/idre_api_client.py]:::known
+    IDRE([IDRE REST API<br/>/api/reports/&lt;report&gt;]):::ext
+
+    DERIVED[core.orchestrator.run_query<br/>LangGraph 14-agent pipeline]:::derived
+    DB([MySQL RDS<br/>idre_stage]):::ext
+
+    GEMINI([Gemini<br/>gemini-2.5-pro + 3.1-pro-preview]):::ext
+
+    SHAPE[Canonical shape<br/>formatted_response, query_result,<br/>row_count, validated_sql, agent_trace,<br/>router_decision, chart_config, ...]:::store
+
+    UI --> ENTRY
+    HARN --> ENTRY
+    ENTRY --> ROUTER
+    ROUTER -- path=known --> KNOWN
+    ROUTER -- path=derived --> DERIVED
+    KNOWN --> IDRE
+    KNOWN -- API fail --> DERIVED
+    DERIVED --> DB
+    DERIVED --> GEMINI
+    KNOWN --> SHAPE
+    DERIVED --> SHAPE
+    SHAPE --> UI
+    SHAPE --> HARN
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="entrypoint">
+<h2>2. Single entrypoint &mdash; <code>run_query_v10</code></h2>
+
+<div class="panel">
+<p>
+Before <b>Option C</b> (2026-05-20), <code>app.py</code> imported
+<code>core.orchestrator.run_query</code> directly &mdash; bypassing the router. The Streamlit user never reached the known-path API calls. Option C unified both paths under <code>harness_entrypoint.run_query_v10()</code>.
+</p>
+
+<h3>Signature</h3>
+<pre>def run_query_v10(
+    prompt: str,
+    now_anchor=None,
+    user_role: str = "MA",
+    feedback_correction_context: dict | None = None,
+    is_feedback_retry: bool = False,
+    session_id: str = "harness",
+    conversation_history: list | None = None,
+    clarification_attempted: bool = False,
+    user_identity: str = "",
+) -> dict
+</pre>
+
+<h3>Return shape (canonical &mdash; same for known + derived)</h3>
+<table>
+  <tr><th>Key</th><th>Type</th><th>Known</th><th>Derived</th></tr>
+  <tr><td><code>formatted_response</code></td><td>str</td><td>Markdown of IDRE body</td><td>Markdown table + assumptions + SQL fence</td></tr>
+  <tr><td><code>query_result</code></td><td>list[dict]</td><td>IDRE rows</td><td>SQL rows</td></tr>
+  <tr><td><code>row_count</code></td><td>int</td><td>len(rows)</td><td>len(rows)</td></tr>
+  <tr><td><code>validated_sql</code></td><td>str</td><td><code>""</code></td><td>SELECT statement</td></tr>
+  <tr><td><code>agent_trace</code></td><td>list[dict]</td><td>[Router, IDRE API Client]</td><td>10&ndash;14 entries</td></tr>
+  <tr><td><code>router_decision</code></td><td>dict</td><td><code>{path: "known", report, parameters, confidence}</code></td><td><code>{path: "derived", ...}</code></td></tr>
+  <tr><td><code>chart_config</code></td><td>dict | null</td><td><code>None</code></td><td><code>None</code> after chart-disable</td></tr>
+  <tr><td><code>query_explanation</code></td><td>str</td><td><code>""</code></td><td>One-line Gemini summary</td></tr>
+  <tr><td><code>query_narrative</code></td><td>str</td><td><code>""</code></td><td>2&ndash;4 sentence Gemini narrative</td></tr>
+  <tr><td><code>proactive_suggestions</code></td><td>list[str]</td><td><code>[]</code></td><td>3 Gemini follow-ups</td></tr>
+  <tr><td><code>assumptions</code></td><td>list[str]</td><td><code>[]</code></td><td>Sql_writer assumption bullets</td></tr>
+  <tr><td><code>token_usage</code></td><td>dict</td><td><code>{}</code></td><td>Per-agent input/output/total</td></tr>
+  <tr><td><code>fallback_reason</code></td><td>str?</td><td>&mdash;</td><td>Set when known&rarr;derived fell back</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="router">
+<h2>3. Router &mdash; signature matcher (Tier 1)</h2>
+
+<div class="panel">
+<p><code>agents/router.py</code> + <code>config/route_signatures.json</code> &mdash; 12 known reports with trigger_phrases + parameter_extractors. Word-boundary regex match, score-weighted, confidence threshold.</p>
+
+<h3>12 known reports</h3>
+<table>
+  <tr><th>Report ID</th><th>Endpoint</th><th>Triggers</th></tr>
+  <tr><td><code>due-dates</code></td><td>/api/reports/due-dates</td><td>"due date", "overdue", "deadline", "past due", "approaching", "urgent", "due today", "due this week"</td></tr>
+  <tr><td><code>outstanding-payments</code></td><td>/api/reports/outstanding-payments</td><td>"outstanding payment", "unpaid", "owed amount"</td></tr>
+  <tr><td><code>case-balance</code></td><td>/api/reports/case-balance</td><td>"case balance", "balance for"</td></tr>
+  <tr><td><code>unpaid-disputes</code></td><td>/api/reports/unpaid-disputes</td><td>"unpaid dispute", "unpaid"</td></tr>
+  <tr><td><code>idre-payouts</code></td><td>/api/reports/idre-payouts</td><td>"payout", "settlement payout"</td></tr>
+  <tr><td><code>dashboard-stats</code></td><td>/api/reports/dashboard-stats</td><td>"dashboard", "overview", "stats"</td></tr>
+  <tr><td><code>cms-payments</code></td><td>/api/reports/cms-payments</td><td>"cms payment", "cms activity"</td></tr>
+  <tr><td><code>case-analytics</code></td><td>/api/reports/case-analytics</td><td>"case analytics", "case metrics"</td></tr>
+  <tr><td><code>team-performance</code></td><td>/api/reports/team-performance</td><td>"team performance", "arbitrator performance"</td></tr>
+  <tr><td><code>recent-activity</code></td><td>/api/reports/recent-activity</td><td>"recent activity", "latest activity"</td></tr>
+  <tr><td><code>auditing/daily-funds</code></td><td>/api/reports/auditing/daily-funds</td><td>"daily funds", "fund audit"</td></tr>
+  <tr><td><code>auditing/daily-transactions</code></td><td>/api/reports/auditing/daily-transactions</td><td>"daily transaction", "transaction audit"</td></tr>
+</table>
+
+<p class="small muted">If no trigger phrases match strongly (confidence &lt; threshold), router returns <code>path="derived"</code>. Smoke run found 2 of 12 prompts under-confident at 0.5 &mdash; router-calibration follow-up (not Option C scope).</p>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="known">
+<h2>4. Known path &mdash; IDRE API call</h2>
+
+<div class="lane known">
+<h3>Sequence</h3>
+<ol>
+<li><code>route(prompt)</code> returns <code>{path:"known", report, parameters, confidence}</code></li>
+<li><code>IdreApiClient()._auto_session()</code> calls <code>/api/dev/auto-login</code> <span class="pill new">DEV-ONLY &mdash; needs production-auth rewrite</span></li>
+<li><code>client.call(report, parameters)</code> &rarr; HTTP GET to <code>{IDRE_BASE_URL}{endpoint}</code></li>
+<li><code>_known_path_response()</code> normalizes the body via <code>_coerce_rows()</code></li>
+<li>Markdown rendered via <code>_render_known_markdown()</code> (mirrors response_formatter style)</li>
+<li>Trace entries: <code>Router</code> + <code>IDRE API Client</code> with status, latency</li>
+<li>Returned dict has the canonical shape (see &sect;2)</li>
+</ol>
+
+<h3>Body-shape normalization (<code>_coerce_rows</code>)</h3>
+<table>
+  <tr><th>IDRE returns</th><th>_coerce_rows produces</th></tr>
+  <tr><td><code>[{a:1}, {a:2}]</code></td><td>same (list of row-dicts)</td></tr>
+  <tr><td><code>{data: [...], meta: ...}</code></td><td><code>[...]</code> (unwrapped)</td></tr>
+  <tr><td><code>{kpi: 42}</code> (single scalar)</td><td><code>[{kpi: 42}]</code> (wrapped)</td></tr>
+  <tr><td>anything else / <code>None</code></td><td><code>[]</code></td></tr>
+</table>
+
+<h3>Failure path (graceful fallback to derived)</h3>
+<pre>try:
+    resp = client.call(rd.report, rd.parameters)
+except Exception as e:
+    # Connection refused / auth-fail / 5xx → fall back to derived
+    return _run_derived(prompt, rd, ..., error=str(e))
+# state['fallback_reason'] now carries the IDRE error
+# agent_trace begins with a "Router → Derived Fallback" entry</pre>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="derived">
+<h2>5. Derived pipeline &mdash; LangGraph 14 agents</h2>
+
+<div class="lane derived">
+<p><code>core/orchestrator.py</code> builds a LangGraph <code>StateGraph(GraphState)</code> with 14 agent nodes + 3 utility nodes + 1 conditional helper. The orchestrator handles routing between agents based on state transitions.</p>
+
+<div class="mermaid">
+flowchart TD
+    classDef agent    fill:#1c2f4d,stroke:#58a6ff,color:#fff
+    classDef parallel fill:#2a3060,stroke:#a371f7,color:#fff
+    classDef tool     fill:#3a2515,stroke:#f78166,color:#fff
+    classDef gate     fill:#3a3220,stroke:#e3b341,color:#fff
+    classDef terminal fill:#1b3b1f,stroke:#56d364,color:#fff
+    classDef error    fill:#3a1f1f,stroke:#f85149,color:#fff
+
+    START([entry: context_loader]):::terminal
+    CL[Context Loader<br/>glossary, role, history,<br/>now_anchor, entity_registry]:::agent
+
+    R1{retry?}:::gate
+    FB[Feedback Injector<br/>injects correction_context<br/>on Flow B retry]:::agent
+    AS[Ambiguity Scorer<br/>~12 ambiguity rules<br/>score 0-100]:::agent
+    CA[Clarification Agent<br/>halt if score &gt; threshold]:::agent
+    HALT([END: ask clarification]):::terminal
+
+    PAR[Parallel: ThreadPool<br/>+ copy.deepcopy state]:::parallel
+    SM[Schema Mapper<br/>BM25 + intent regex<br/>RBAC table filter]:::agent
+    PC[Platform Context<br/>cross_cutting_rules.json<br/>+ report_reference_cards.json]:::agent
+    SV[Schema Verifier<br/>live SHOW COLUMNS<br/>+ index info]:::agent
+
+    SW[SQL Writer<br/>Gemini 2.5 Pro<br/>+ 7 in-process tools]:::agent
+    TOOLS[7 tools<br/>see &sect;6]:::tool
+    SQLV[SQL Validator<br/>6 blocking checks<br/>+ injection patterns]:::agent
+
+    R2{valid?}:::gate
+    EX[Executor<br/>:now + :current_user_id bind<br/>100K row cap, 30s timeout<br/>materialized cache]:::agent
+    R3{exec ok?}:::gate
+
+    PP[Post-Processor<br/>10 sub-processors<br/>zoneinfo EST]:::agent
+    OF[Output Formatter<br/>cell-level types<br/>conditional styles]:::agent
+    RF[Response Formatter<br/>format_response markdown<br/>+ 3 Gemini fanout]:::agent
+
+    DBG[Debugger<br/>14 regex classifiers<br/>+ LLM fallback]:::error
+    R4{abort?}:::gate
+    INC[increment_retry<br/>retry_count++]:::agent
+    MAX[max_retry_error<br/>graceful error message]:::error
+
+    TFR[track_fix_result<br/>KB success/fail]:::agent
+    AUD[audit_trail<br/>final log + timings]:::agent
+    DONE([END]):::terminal
+
+    START --> CL
+    CL --> R1
+    R1 -- yes --> FB --> AS
+    R1 -- no  --> AS
+    AS --> CA
+    CA -- needs_clarification --> HALT
+    CA -- ok --> PAR
+    PAR --> SM
+    PAR --> PC
+    SM --> SV
+    PC --> SV
+    SV --> SW
+    SW <--> TOOLS
+    SW --> SQLV
+    SQLV --> R2
+    R2 -- pass --> EX
+    R2 -- fail --> DBG
+    EX --> R3
+    R3 -- ok    --> PP
+    R3 -- error --> DBG
+    DBG --> R4
+    R4 -- abort      --> MAX
+    R4 -- retry &lt; 3 --> INC --> SW
+    R4 -- max hit    --> MAX
+    PP --> OF
+    OF --> RF
+    RF --> TFR
+    TFR --> AUD
+    MAX --> AUD
+    HALT --> AUD
+    AUD --> DONE
+</div>
+
+<h3>14 agents &mdash; status &amp; deepdive node</h3>
+<table>
+  <tr><th>#</th><th>Agent</th><th>File</th><th>Deepdive</th><th>Key fix in V10 cycle</th></tr>
+  <tr><td>1</td><td><code>context_loader</code></td><td>agents/context_loader.py</td><td>Node 2</td><td>Glossary registry, LLM-halt pattern, <code>:now</code> anchor</td></tr>
+  <tr><td>2</td><td><code>feedback_injector</code></td><td>agents/feedback_injector.py</td><td>Node 2 paired</td><td>Flow B feedback retry plumbing</td></tr>
+  <tr><td>3</td><td><code>ambiguity_scorer</code></td><td>agents/ambiguity_scorer.py</td><td>Node 3</td><td>Dropped V6 auto-answer + adaptive threshold; <code>V10_AMBIGUITY_THRESHOLD</code> env</td></tr>
+  <tr><td>4</td><td><code>clarification_agent</code></td><td>agents/clarification_agent.py</td><td>Node 3 paired</td><td>LLM-halt extended; shared threshold helper</td></tr>
+  <tr><td>5</td><td><code>schema_mapper</code></td><td>agents/schema_mapper.py</td><td>Node 4</td><td>ARC-13 fix (<code>copy.deepcopy</code> state per agent); Option E top-K</td></tr>
+  <tr><td>6</td><td><code>platform_context_agent</code></td><td>agents/platform_context_agent.py</td><td>Node 4 paired</td><td>Repurposed to surface IDRE cross-cutting rules</td></tr>
+  <tr><td>7</td><td><code>schema_verifier</code></td><td>agents/schema_verifier.py</td><td>Node 5</td><td>Removed Levenshtein + column_usage dead code</td></tr>
+  <tr><td>8</td><td><code>sql_writer</code></td><td>agents/sql_writer.py</td><td>Node 4 + 6 + 6.1</td><td>Option E XML blocks, 7-tool catalog, <code>MAX_VERIFICATION_ROUNDS=5</code>, tiered parser, <code>MALFORMED_FUNCTION_CALL</code> handler</td></tr>
+  <tr><td>9</td><td><code>sql_validator</code></td><td>agents/sql_validator.py</td><td>Node 7</td><td>V10 header, dual-catalog diagnostic hint, 18 tests</td></tr>
+  <tr><td>10</td><td><code>executor</code></td><td>agents/executor.py</td><td>Node 8</td><td><code>_bind_runtime_params</code> for <code>:now</code> + <code>:current_user_id</code></td></tr>
+  <tr><td>11</td><td><code>debugger</code></td><td>agents/debugger_agent.py</td><td>Node 8 + 6.1</td><td>14 classifiers (added NO_SQL_EMITTED); abort honoured via GraphState fix</td></tr>
+  <tr><td>12</td><td><code>post_processor</code></td><td>agents/post_processor.py</td><td>Node 9</td><td>DST-aware <code>zoneinfo.ZoneInfo("America/New_York")</code>; dead code removal</td></tr>
+  <tr><td>13</td><td><code>output_formatter</code></td><td>agents/output_formatter.py</td><td>Node 10</td><td><code>_TIME_WINDOW_SUFFIX_RE</code> intercepts <code>*_last_N_days</code>; negative-currency fix</td></tr>
+  <tr><td>14</td><td><code>response_formatter</code></td><td>agents/response_formatter.py</td><td>Node 10 + chart-disable</td><td>9-shape chart tree narrowed to (number, table); Gemini fanout tested</td></tr>
+</table>
+
+<p class="small muted">Plus the <b>router</b> (Node 1) sits at Tier 1 outside the 14. <b>All derived agents now deepdived.</b></p>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="state">
+<h2>6. State &mdash; <code>GraphState</code> TypedDict</h2>
+
+<div class="panel">
+<p>Defined in <code>state/context.py</code>. Flows through every agent in the LangGraph. After Node 8, includes <code>debug_error_type</code> + <code>debug_retry_strategy</code> (added because LangGraph state-merge was dropping undeclared keys &mdash; smoke S6 root cause).</p>
+
+<h3>Field groupings</h3>
+<table>
+  <tr><th>Group</th><th>Fields</th></tr>
+  <tr><td><b>Identity</b></td><td><code>user_query, session_id, user_role, user_identity, permitted_tables</code></td></tr>
+  <tr><td><b>Conversation</b></td><td><code>conversation_history, resolved_query, entity_registry</code></td></tr>
+  <tr><td><b>Schema</b></td><td><code>relevant_tables, schema_context, platform_context</code></td></tr>
+  <tr><td><b>SQL</b></td><td><code>generated_sql, validated_sql, query_result, row_count, execution_error</code></td></tr>
+  <tr><td><b>Ambiguity</b></td><td><code>ambiguity_score, ambiguity_flags, glossary_matches</code></td></tr>
+  <tr><td><b>Clarification</b></td><td><code>needs_clarification, clarification_question, clarification_attempted</code></td></tr>
+  <tr><td><b>Response</b></td><td><code>formatted_response, assumptions, response_format, chart_config, query_explanation, query_narrative, proactive_suggestions</code></td></tr>
+  <tr><td><b>Pipeline control</b></td><td><code>retry_count, error_message, retry_context, debug_error_type, debug_retry_strategy</code></td></tr>
+  <tr><td><b>Audit / tracing</b></td><td><code>pipeline_start_ms, agent_timings, token_usage, agent_trace</code></td></tr>
+  <tr><td><b>Feedback</b></td><td><code>feedback_correction_context, is_feedback_retry, feedback_record_id</code></td></tr>
+  <tr><td><b>User prefs</b></td><td><code>user_preferences</code></td></tr>
+  <tr><td><b>V10 additions</b></td><td><code>now_anchor_iso, router_decision, idre_api_response, knowledge_git_sha, was_capped</code></td></tr>
+</table>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="tools">
+<h2>7. SQL Writer tools &mdash; 7 in-process Gemini function-calling tools</h2>
+
+<div class="lane tool">
+<p><code>tools/idre_tools.py</code> &mdash; registered as Gemini function declarations via <code>_build_gemini_tools()</code> in <code>agents/sql_writer.py</code>. Node 6 dropped the redundant <code>get_report_reference</code> alias. Node 6 also de-hardcoded <code>verify_sql_executes</code>'s bot_root via <code>Path(__file__).parent.parent</code>.</p>
+
+<table>
+  <tr><th>#</th><th>Tool</th><th>Reads from</th><th>Notes</th></tr>
+  <tr><td>1</td><td><code>get_idre_business_logic</code></td><td>knowledge/v10/business_logic.json</td><td>Full Prisma + JS + SQL equivalent for 18 reports</td></tr>
+  <tr><td>2</td><td><code>get_table_schema</code></td><td>knowledge/v10/schema_catalog.json</td><td>Prisma-derived 53-table catalog</td></tr>
+  <tr><td>3</td><td><code>get_enum_values</code></td><td>knowledge/v10/enum_catalog.json</td><td>Prefers rds_sampled source</td></tr>
+  <tr><td>4</td><td><code>lookup_business_term</code></td><td>config/business_glossary.json</td><td>Synonym match</td></tr>
+  <tr><td>5</td><td><code>list_available_reports</code></td><td>knowledge/v10/business_logic.json</td><td>id + endpoint listing</td></tr>
+  <tr><td>6</td><td><code>find_filter_pattern</code></td><td>inline _filter_patterns()</td><td>9 NL date phrases &rarr; SQL fragment with <code>:now</code></td></tr>
+  <tr><td>7</td><td><code>verify_sql_executes</code></td><td>live RDS read replica</td><td>EXPLAIN + LIMIT-5 dry run; <code>MAX_VERIFICATION_ROUNDS=5</code></td></tr>
+</table>
+
+<p class="small muted">SQL Writer model: <code>gemini-2.5-pro</code>. Other agents using Gemini: clarification, context_loader, debugger (fallback), response_formatter (3 calls) &mdash; all on <code>gemini-3.1-pro-preview</code> (cross-agent audit pending).</p>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="retry">
+<h2>8. Retry &amp; abort logic</h2>
+
+<div class="panel warn">
+<p>Validator and executor errors route to the <b>Debugger</b>, which classifies the error against 14 regex patterns and chooses a <code>retry_strategy</code>. The orchestrator's <code>_route_after_debugger</code> honours the strategy.</p>
+
+<h3>Debugger error patterns (14, after Node 6.1)</h3>
+<table>
+  <tr><th>Error type</th><th>Trigger</th><th>Strategy</th></tr>
+  <tr><td><code>HALLUCINATED_COLUMN</code></td><td>"Unknown column 'X'"</td><td>rewrite</td></tr>
+  <tr><td><code>HALLUCINATED_TABLE</code></td><td>"Table 'db.X' doesn't exist"</td><td>rewrite</td></tr>
+  <tr><td><code>HALLUCINATED_TABLE</code></td><td>"Unknown table(s) referenced: [X]"</td><td>rewrite</td></tr>
+  <tr><td><code>HALLUCINATED_COLUMN</code></td><td>"Hallucinated column(s) detected ... Column `X`.`Y`"</td><td>rewrite</td></tr>
+  <tr><td><code>AMBIGUOUS_COLUMN</code></td><td>"Column 'X' in field list is ambiguous"</td><td>rewrite</td></tr>
+  <tr><td><code>SYNTAX_ERROR</code></td><td>"You have an error in your SQL syntax"</td><td>rewrite</td></tr>
+  <tr><td><code>TIMEOUT</code></td><td>"maximum statement execution time exceeded"</td><td>suggest_filter</td></tr>
+  <tr><td><code>DIVISION_BY_ZERO</code></td><td>"Division by zero"</td><td>rewrite</td></tr>
+  <tr><td><code>TYPE_MISMATCH</code></td><td>"Incorrect (datetime|integer|float) value"</td><td>rewrite</td></tr>
+  <tr><td><code>SAFETY_VIOLATION</code></td><td>"Blocked keyword 'X'"</td><td><b>abort</b></td></tr>
+  <tr><td><code>WRONG_STATEMENT_TYPE</code></td><td>"Query must be a SELECT statement"</td><td><b>abort</b></td></tr>
+  <tr><td><code>LOCK_TIMEOUT</code></td><td>"Lock wait timeout exceeded"</td><td>retry_as_is</td></tr>
+  <tr><td><code>NO_SQL_EMITTED</code> <span class="pill new">Node 6.1</span></td><td>"Empty SQL generated."</td><td>rewrite (specific instruction)</td></tr>
+  <tr><td><code>UNKNOWN</code></td><td>regex miss; LLM-classify (attempt &ge; 2)</td><td>rewrite</td></tr>
+</table>
+
+<h3>Per-attempt escalation</h3>
+<div class="kvp">
+  <dt>Attempt 1</dt><dd>Use the per-pattern fix instruction as-is</dd>
+  <dt>Attempt 2</dt><dd>Append: "Simplify query, remove optional columns, reduce JOINs"</dd>
+  <dt>Attempt 3 (final)</dt><dd>Append: "Minimum-viable query: 2 tables max, simple WHERE, no subqueries/HAVING/complex aggregates"</dd>
+</div>
+
+<h3>State updates the debugger writes</h3>
+<pre>{
+  "retry_context": "RETRY ATTEMPT N — ERROR ANALYSIS: ... Fix instruction: ...",
+  "debug_error_type": "WRONG_STATEMENT_TYPE",
+  "debug_retry_strategy": "abort",     // honoured by _route_after_debugger
+  "execution_error": None,             // cleared so downstream doesn't re-trigger
+  "error_message": "",
+}</pre>
+
+<h3>Knowledge base learning loop</h3>
+<p><code>data/error_knowledge_base.json</code> &mdash; the debugger writes a candidate fix on every classification (<code>success: None</code>). After the next retry, <code>_track_fix_result</code> calls <code>mark_fix_success(error_type, success=bool)</code>. Future debugger runs on the same error_type can reference what worked before via <code>_kb_lookup</code> (returns successful fixes only).</p>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="tracing">
+<h2>9. Tracing &mdash; OpenTelemetry spans</h2>
+
+<div class="panel">
+<p><code>tracing.py</code> &mdash; OTLP HTTP exporter to <code>http://localhost:4318/v1/traces</code>. Service name <code>v10-bot</code>. Controlled by <code>V10_OTEL_ENABLED</code> (default "1"; "0"/"false" makes decorators zero-cost no-ops).</p>
+
+<h3>Span tree per query</h3>
+<pre>v10.query                              ← root, set by harness_entrypoint
+├─ v10.known.api_call                  ← known path only
+│  └─ (HTTP call, status, latency_ms)
+└─ v10.derived.orchestrator            ← derived path
+   ├─ v10.agent.context_loader
+   ├─ v10.agent.feedback_injector      ← on retry
+   ├─ v10.agent.ambiguity_scorer
+   ├─ v10.agent.clarification_agent
+   ├─ v10.agent.schema_mapper          ← parallel with platform_context (ThreadPool)
+   ├─ v10.agent.platform_context_agent
+   ├─ v10.agent.schema_verifier
+   ├─ v10.agent.sql_writer
+   │  ├─ v10.tool.get_table_schema       (when invoked)
+   │  ├─ v10.tool.verify_sql_executes    (always — verification gate)
+   │  ├─ v10.tool.find_filter_pattern    (when invoked)
+   │  └─ v10.tool.{lookup_business_term, get_enum_values, get_idre_business_logic, list_available_reports}
+   ├─ v10.agent.sql_validator
+   ├─ v10.agent.executor
+   │  └─ v10.db.query                    ← real RDS exec, db.row_count, db.elapsed_ms
+   ├─ v10.agent.post_processor
+   ├─ v10.agent.output_formatter
+   └─ v10.agent.response_formatter</pre>
+
+<h3>Span attributes</h3>
+<table>
+  <tr><th>Span</th><th>Attributes</th></tr>
+  <tr><td>v10.query (root)</td><td><code>query.prompt</code> (PII-redacted), <code>query.user_role</code>, <code>query.path</code>, <code>router.report</code>, <code>router.confidence</code></td></tr>
+  <tr><td>v10.agent.* (each)</td><td><code>agent.name</code>, <code>agent.input_keys</code>, <code>agent.output_keys</code>, <code>agent.status</code>, <code>agent.summary</code></td></tr>
+  <tr><td>v10.tool.*</td><td><code>tool.name</code>, <code>tool.args_keys</code>, <code>tool.result_size</code></td></tr>
+  <tr><td>v10.db.query</td><td><code>db.system</code>, <code>db.statement_length</code>, <code>db.row_count</code>, <code>db.elapsed_ms</code>, <code>db.error</code></td></tr>
+  <tr><td>v10.known.api_call</td><td><code>known.idre_status</code>, <code>known.error</code></td></tr>
+</table>
+
+<h3>PII redaction</h3>
+<p><code>redact(text)</code> in <code>tracing.py</code> strips emails, phone numbers (10+ digit runs), and SSN-shaped strings before they reach span attributes.</p>
+
+<h3>Local trace viewer</h3>
+<pre>docker run -d --name v10-jaeger \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  -p 16686:16686 -p 4318:4318 \
+  jaegertracing/all-in-one:latest
+
+# UI: http://localhost:16686
+# Service: v10-bot — set lookback to "Last 1 Hour"</pre>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="knowledge">
+<h2>10. Knowledge artifacts</h2>
+
+<div class="panel">
+<table>
+  <tr><th>Path</th><th>Purpose</th><th>Size</th></tr>
+  <tr><td><code>knowledge/v10/business_logic.json</code></td><td>18 reports × Prisma + JS + SQL equivalent</td><td>120 KB</td></tr>
+  <tr><td><code>knowledge/v10/schema_catalog.json</code></td><td>Prisma-derived 53-table catalog (no FKs/row counts)</td><td>218 KB</td></tr>
+  <tr><td><code>knowledge/v10/enum_catalog.json</code></td><td>rds_sampled + ts_enums</td><td>3.6 KB</td></tr>
+  <tr><td><code>knowledge/v10/cross_cutting_rules.json</code></td><td>12 universal rules + 13 report-card triggers (Node 4)</td><td>11.5 KB</td></tr>
+  <tr><td><code>knowledge/v10/report_reference_cards.json</code></td><td>V10 report cards</td><td>3.5 KB</td></tr>
+  <tr><td><code>knowledge/v10/manifest.json</code></td><td>idre_git_sha + build timestamp</td><td>2.5 KB</td></tr>
+  <tr><td><code>schema_catalog.json</code> (root)</td><td>MySQL-derived 44-table catalog &mdash; used by <code>sql_validator</code></td><td>varies</td></tr>
+  <tr><td><code>config/business_rules.json</code></td><td>Pricing eras, payment labels, urgency thresholds</td><td>1.8 KB</td></tr>
+  <tr><td><code>config/business_glossary.json</code></td><td>Domain terms + synonyms for ambiguity scorer + tool lookups</td><td>varies</td></tr>
+  <tr><td><code>config/access_control.json</code></td><td>9 role codes &rarr; permitted_tables map</td><td>varies</td></tr>
+  <tr><td><code>config/route_signatures.json</code></td><td>12 router signatures + trigger phrases</td><td>varies</td></tr>
+</table>
+
+<p class="small muted">Note: <code>schema_catalog.json</code> (root, used by sql_validator) and <code>knowledge/v10/schema_catalog.json</code> (Prisma, used by everything else) are out of sync &mdash; Phase 5 "Design A" unification documented in <code>data/README.md</code>.</p>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="config">
+<h2>11. Configuration &amp; environment</h2>
+
+<div class="panel">
+<h3>Required env vars (<code>.env</code>)</h3>
+<table>
+  <tr><td><code>GEMINI_API_KEY</code></td><td>Gemini API access (pydantic case-insensitive)</td></tr>
+  <tr><td><code>DB_HOST</code> / <code>DB_PORT</code> / <code>DB_NAME</code> / <code>DB_USER</code> / <code>DB_PASSWORD</code></td><td>RDS MySQL connection</td></tr>
+  <tr><td><code>DB_SSL_CA</code></td><td>Path to <code>global-bundle.pem</code> (RDS CA bundle)</td></tr>
+  <tr><td><code>APP_PASSWORD</code></td><td>Streamlit gate</td></tr>
+</table>
+
+<h3>Optional env vars</h3>
+<table>
+  <tr><td><code>IDRE_BASE_URL</code></td><td>IDRE API host (default <code>http://127.0.0.1:3000</code>) &mdash; <b>MUST be set in production</b></td></tr>
+  <tr><td><code>V10_OTEL_ENABLED</code></td><td>"1" enables OTLP; "0"/"false" disables (zero-cost no-op)</td></tr>
+  <tr><td><code>OTEL_SDK_DISABLED</code></td><td>Standard OTel kill-switch; honours when no collector is running</td></tr>
+  <tr><td><code>V10_ROW_CAP</code></td><td>Executor row cap (default 100 000)</td></tr>
+  <tr><td><code>V10_DISABLE_ROW_CAP</code></td><td>"1" disables the cap (test escape hatch)</td></tr>
+  <tr><td><code>V10_AMBIGUITY_THRESHOLD</code></td><td>Override clarification threshold</td></tr>
+  <tr><td><code>DB_READ_REPLICA_HOST</code></td><td>Optional read-replica routing for analytical queries</td></tr>
+</table>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<section id="deploy">
+<h2>12. Deployment topology</h2>
+
+<div class="panel">
+<h3>Local (development)</h3>
+<pre>py -3.11 -m streamlit run app.py --server.port=8501
+# Streamlit calls run_query_v10 → routes known/derived
+# DB: live RDS staging via .env
+# IDRE API: localhost:3000 (typically unreachable → falls back to derived)
+# Tracing: docker run jaegertracing/all-in-one (UI at :16686)</pre>
+
+<h3>AWS (via <code>cdk_deploy/</code>)</h3>
+<div class="mermaid">
+flowchart LR
+    classDef aws fill:#1b2a4d,stroke:#58a6ff,color:#fff
+    classDef store fill:#262a30,stroke:#8b949e,color:#fff
+
+    DEV([dev machine]):::aws
+    CDK[cdk deploy]:::aws
+    S3[S3: code asset]:::store
+    SM[Secrets Manager:<br/>idre/reports-bot/secrets]:::store
+    EC2[EC2 t3.medium<br/>AL2023, 30 GB EBS<br/>systemd: streamlit on :8501]:::aws
+    RDS([RDS MySQL<br/>idre_stage]):::store
+    IDRE([IDRE API<br/>staging]):::store
+    USER([User browser]):::aws
+
+    DEV --> CDK
+    CDK --> S3
+    CDK --> EC2
+    EC2 -- on boot --> S3
+    EC2 -- on boot --> SM
+    EC2 --> RDS
+    EC2 --> IDRE
+    USER --> EC2
+</div>
+
+<h3>Known pre-deploy issues</h3>
+<table>
+  <tr><th>ID</th><th>Severity</th><th>Issue</th></tr>
+  <tr><td>C0</td><td><span class="pill new">CRITICAL</span></td><td>IDRE_BASE_URL defaults to 127.0.0.1; <code>/api/dev/auto-login</code> is dev-only &mdash; needs production auth design</td></tr>
+  <tr><td>N2a</td><td><span class="pill new">CRITICAL</span></td><td>AWS account <code>822804284820</code> hardcoded; replace + delete <code>cdk.context.json</code> for new account deploy</td></tr>
+  <tr><td>C1</td><td><span class="pill new">CRITICAL</span></td><td>Production code uses <code>X | Y</code> union syntax (Python 3.10+); user-data installs <code>python3</code> (3.9 default on AL2023)</td></tr>
+  <tr><td>C2</td><td><span class="pill new">HIGH</span></td><td><code>chromadb</code> + <code>sentence-transformers</code> in requirements.txt but unused (V7 RAG leftovers) &mdash; +2.5 GB / +20 min install</td></tr>
+  <tr><td>I1</td><td>medium</td><td>CDK exclude list misses tests/, local/, .claude/, _*.py &mdash; bloats S3 asset and leaks dev artifacts</td></tr>
+  <tr><td>I2</td><td>medium</td><td>OTEL exporter floods stderr without a collector &mdash; set <code>OTEL_SDK_DISABLED=true</code> or wire a collector</td></tr>
+  <tr><td>I5</td><td><span class="pill new">FIXED</span></td><td>Was: 3 knowledge/v10/*.json untracked &mdash; now committed in <code>04bfb43</code></td></tr>
+</table>
+
+<p class="small muted">Full assessment at <code>local/docs/superpowers/reports/2026-05-20-v10-cdk-deploy-assessment.md</code>.</p>
+</div>
+</section>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<footer style="margin-top:64px; border-top:1px solid var(--border); padding-top:18px; color:var(--muted); font-size:13px;">
+  <p>
+    Generated 2026-05-20 after Option C unify + Node 6.1 sql_writer parser fix.<br>
+    Test count: <b>261/261</b> passing. Deepdive complete for all 14 derived agents + router.<br>
+    Source: <code><HOME>/Downloads/v10_reports_bot</code> &middot; backup at <code><HOME>/Downloads/v10_reports_bot_backup</code> &middot; remote <code>github.com/Anand0008/v10-reports-bot</code>.
+  </p>
+</footer>
+
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#0d1117',
+      primaryColor: '#1c2f4d',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#58a6ff',
+      lineColor: '#8b949e',
+      secondaryColor: '#3a2515',
+      tertiaryColor: '#1b3b1f',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+      fontSize: '13px',
+    },
+    flowchart: { curve: 'basis', useMaxWidth: true, htmlLabels: true },
+  });
+</script>
+</body>
+</html>
